@@ -1,0 +1,173 @@
+erDiagram
+    SECTOR_ECONOMICO ||--o{ EMPRESA : "clasifica"
+    USUARIO |o--o| EMPRESA : "accede_como"
+    USUARIO ||--o| EJECUTIVO : "opera_como"
+
+    EMPRESA ||--o{ FACTURA : "cede"
+    EMPRESA ||--o{ FACTURA : "debe"
+    EMPRESA ||--o{ CUPO_PAGADOR : "recibe"
+    CATEGORIA_RIESGO ||--o{ CUPO_PAGADOR : "clasifica"
+    USUARIO ||--o{ CUPO_PAGADOR : "aprueba"
+
+    CUPO_PAGADOR ||--o{ OPERACION_FACTORAJE : "respalda"
+    EMPRESA ||--o{ OPERACION_FACTORAJE : "solicita"
+    EJECUTIVO ||--o{ OPERACION_FACTORAJE : "ejecuta"
+    OPERACION_FACTORAJE ||--|{ DETALLE_OPERACION : "incluye"
+    FACTURA ||--o| DETALLE_OPERACION : "se_cede_en"
+    OPERACION_FACTORAJE ||--|| DESEMBOLSO : "genera"
+
+    FACTURA ||--o| COBRO : "se_paga_con"
+    EJECUTIVO ||--o{ COBRO : "registra"
+
+    USUARIO ||--o{ BITACORA_OPERACION : "ejecuta"
+    OPERACION_FACTORAJE |o--o{ BITACORA_OPERACION : "traza"
+
+    USUARIO ||--o{ USUARIO_ROL : "tiene"
+    ROL ||--o{ USUARIO_ROL : "se_asigna_en"
+
+    EMPRESA {
+        bigint id PK "autoincrementable"
+        varchar(17) nit UK "NOT NULL, formato 0000-000000-000-0"
+        varchar(10) nrc UK "NOT NULL, registro de contribuyente IVA"
+        varchar(150) nombre_legal "NOT NULL, nombre ante Hacienda"
+        varchar(100) nombre_comercial "NULL: opcional"
+        varchar(100) correo "NOT NULL"
+        varchar(15) telefono "NOT NULL"
+        varchar(200) direccion "NOT NULL"
+        varchar(30) cuenta_bancaria "NULL: solo la cedente, para desembolsos"
+        bigint sector_economico_id FK "NOT NULL, a sector_economico(id)"
+        bigint usuario_id FK, UK "NULL: solo si usa el sistema"
+        boolean activo "NOT NULL, DEFAULT true"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    EJECUTIVO {
+        bigint id PK "autoincrementable"
+        varchar(10) codigo_empleado UK "NOT NULL"
+        varchar(60) nombres "NOT NULL"
+        varchar(60) apellidos "NOT NULL"
+        bigint usuario_id FK, UK "NOT NULL, a usuario(id)"
+        boolean activo "NOT NULL, DEFAULT true"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    SECTOR_ECONOMICO {
+        bigint id PK "autoincrementable"
+        varchar(20) codigo UK "NOT NULL, catalogo, ej. COMERCIO"
+        varchar(80) nombre "NOT NULL"
+        boolean activo "NOT NULL, DEFAULT true"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    CATEGORIA_RIESGO {
+        bigint id PK "autoincrementable"
+        varchar(10) codigo UK "NOT NULL, catalogo, ej. A"
+        varchar(80) descripcion "NOT NULL"
+        numeric(6,4) tasa_descuento_anual "NOT NULL, CHECK > 0"
+        numeric(6,4) tasa_mora_anual "NOT NULL, CHECK > 0"
+        integer plazo_maximo_dias "NOT NULL, CHECK > 0"
+        boolean activo "NOT NULL, DEFAULT true"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    FACTURA {
+        bigint id PK "autoincrementable"
+        varchar(36) codigo_generacion UK "NOT NULL, codigo del DTE"
+        varchar(40) sello_recepcion "NOT NULL, sello de Hacienda"
+        numeric(15,2) monto_total "NOT NULL, CHECK > 0"
+        date fecha_emision "NOT NULL"
+        date fecha_vencimiento "NOT NULL, CHECK > fecha_emision"
+        bigint empresa_cedente_id FK "NOT NULL, a empresa(id)"
+        bigint empresa_pagadora_id FK "NOT NULL, a empresa(id), CHECK distinta de cedente"
+        varchar(20) estado "NOT NULL: REGISTRADA, CONFIRMADA, CEDIDA, COBRADA, VENCIDA, INVALIDADA"
+        timestamp fecha_confirmacion "NULL hasta que el pagador confirme"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    CUPO_PAGADOR {
+        bigint id PK "autoincrementable"
+        varchar(20) numero_cupo UK "NOT NULL"
+        bigint empresa_pagadora_id FK "NOT NULL, a empresa(id)"
+        bigint categoria_riesgo_id FK "NOT NULL, a categoria_riesgo(id)"
+        bigint aprobado_por_usuario_id FK "NOT NULL, a usuario(id)"
+        numeric(15,2) monto_aprobado "NOT NULL, CHECK > 0"
+        numeric(15,2) monto_disponible "NOT NULL, CHECK >= 0 y <= monto_aprobado, DERIVADO"
+        varchar(20) estado "NOT NULL: ACTIVO, SUSPENDIDO, VENCIDO"
+        date fecha_aprobacion "NOT NULL"
+        date fecha_vencimiento "NOT NULL, CHECK > fecha_aprobacion"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    OPERACION_FACTORAJE {
+        bigint id PK "autoincrementable"
+        varchar(20) numero_operacion UK "NOT NULL, ej. OPF-2026-00042"
+        bigint empresa_cedente_id FK "NOT NULL, a empresa(id), igual a la cedente de sus facturas (R8)"
+        bigint cupo_pagador_id FK "NOT NULL, a cupo_pagador(id)"
+        bigint ejecutivo_id FK "NOT NULL, a ejecutivo(id)"
+        numeric(6,4) tasa_descuento_aplicada "NOT NULL, copia de la tasa al anticipar"
+        numeric(6,4) tasa_mora_aplicada "NOT NULL, copia de la tasa al anticipar"
+        numeric(15,2) monto_nominal_total "NOT NULL, CHECK > 0, DERIVADO"
+        numeric(15,2) monto_descuento_total "NOT NULL, CHECK > 0, DERIVADO"
+        varchar(20) estado "NOT NULL: VIGENTE, EN_MORA, LIQUIDADA"
+        timestamp fecha_hora_operacion "NOT NULL, DEFAULT now()"
+    }
+
+    DETALLE_OPERACION {
+        bigint id PK "autoincrementable"
+        bigint operacion_factoraje_id FK "NOT NULL, a operacion_factoraje(id)"
+        bigint factura_id FK, UK "NOT NULL, a factura(id), una factura solo en una operacion"
+        numeric(15,2) monto_descuento "NOT NULL, CHECK > 0, DERIVADO"
+    }
+
+    DESEMBOLSO {
+        bigint id PK "autoincrementable"
+        varchar(20) numero_comprobante UK "NOT NULL"
+        bigint operacion_factoraje_id FK, UK "NOT NULL, a operacion_factoraje(id)"
+        varchar(30) cuenta_destino "NOT NULL, copia de la cuenta al desembolsar"
+        timestamp fecha_hora "NOT NULL, DEFAULT now()"
+    }
+
+    COBRO {
+        bigint id PK "autoincrementable"
+        varchar(20) numero_comprobante UK "NOT NULL"
+        bigint factura_id FK, UK "NOT NULL, a factura(id), un cobro por factura"
+        bigint ejecutivo_id FK "NOT NULL, a ejecutivo(id)"
+        numeric(15,2) monto_capital "NOT NULL, CHECK > 0, DERIVADO = factura.monto_total (R14)"
+        numeric(15,2) monto_mora "NOT NULL, CHECK >= 0, DEFAULT 0, DERIVADO (R14)"
+        varchar(20) metodo_pago "NOT NULL: TRANSFERENCIA, CHEQUE, DEPOSITO"
+        timestamp fecha_hora_pago "NOT NULL"
+    }
+
+    BITACORA_OPERACION {
+        bigint id PK "autoincrementable"
+        bigint usuario_id FK "NOT NULL, a usuario(id)"
+        bigint operacion_factoraje_id FK "NULL si la operacion fallo antes de crearse"
+        varchar(30) tipo_operacion "NOT NULL: ANTICIPO_FACTURAS, REGISTRO_COBRO"
+        varchar(20) resultado "NOT NULL: EXITOSO, FALLIDO"
+        varchar(255) detalle "NOT NULL"
+        timestamp fecha_hora "NOT NULL, DEFAULT now()"
+    }
+
+    USUARIO {
+        bigint id PK "autoincrementable"
+        varchar(50) username UK "NOT NULL"
+        varchar(100) password_hash "NOT NULL"
+        varchar(100) correo UK "NOT NULL"
+        boolean activo "NOT NULL, DEFAULT true"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    ROL {
+        bigint id PK "autoincrementable"
+        varchar(30) nombre UK "NOT NULL, catalogo: ADMIN, ASESOR, CLIENTE"
+        varchar(100) descripcion "NOT NULL"
+        boolean activo "NOT NULL, DEFAULT true"
+        timestamp creado_en "NOT NULL, DEFAULT now()"
+    }
+
+    USUARIO_ROL {
+        bigint id PK "autoincrementable"
+        bigint usuario_id FK "NOT NULL, a usuario(id), UNIQUE con rol_id"
+        bigint rol_id FK "NOT NULL, a rol(id)"
+        timestamp asignado_en "NOT NULL, DEFAULT now()"
+    }

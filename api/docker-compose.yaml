@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_NOMBRE}
+      POSTGRES_USER: ${DB_USUARIO}
+      POSTGRES_PASSWORD: ${DB_CLAVE}
+    ports:
+      - "${DB_PUERTO_HOST:-5432}:5432"
+    volumes:
+      - datos-anticipapyme:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USUARIO} -d ${DB_NOMBRE}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${DB_NOMBRE}
+      DB_USUARIO: ${DB_USUARIO}
+      DB_CLAVE: ${DB_CLAVE}
+      JWT_CLAVE: ${JWT_CLAVE:?Falta JWT_CLAVE. Crea un .env con JWT_CLAVE=una-clave-de-32-caracteres-o-mas}
+    ports:
+      - "8080:8080"
+
+volumes:
+  datos-anticipapyme:

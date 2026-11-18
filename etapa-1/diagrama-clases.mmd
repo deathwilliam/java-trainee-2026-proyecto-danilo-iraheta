@@ -1,0 +1,225 @@
+classDiagram
+    direction TB
+
+    class Empresa {
+        -Long id
+        -String nit
+        -String nrc
+        -String nombreLegal
+        -String nombreComercial
+        -String correo
+        -String telefono
+        -String direccion
+        -String cuentaBancaria
+        -SectorEconomico sectorEconomico
+        -Usuario usuario
+        -Boolean activo
+        -LocalDateTime creadoEn
+    }
+
+    class Ejecutivo {
+        -Long id
+        -String codigoEmpleado
+        -String nombres
+        -String apellidos
+        -Usuario usuario
+        -Boolean activo
+        -LocalDateTime creadoEn
+    }
+
+    class SectorEconomico {
+        -Long id
+        -String codigo
+        -String nombre
+        -Boolean activo
+        -LocalDateTime creadoEn
+    }
+
+    class CategoriaRiesgo {
+        -Long id
+        -String codigo
+        -String descripcion
+        -BigDecimal tasaDescuentoAnual
+        -BigDecimal tasaMoraAnual
+        -Integer plazoMaximoDias
+        -Boolean activo
+        -LocalDateTime creadoEn
+    }
+
+    class Factura {
+        -Long id
+        -String codigoGeneracion
+        -String selloRecepcion
+        -BigDecimal montoTotal
+        -LocalDate fechaEmision
+        -LocalDate fechaVencimiento
+        -Empresa empresaCedente
+        -Empresa empresaPagadora
+        -EstadoFactura estado
+        -LocalDateTime fechaConfirmacion
+        -LocalDateTime creadoEn
+    }
+
+    class CupoPagador {
+        -Long id
+        -String numeroCupo
+        -Empresa empresaPagadora
+        -CategoriaRiesgo categoriaRiesgo
+        -Usuario aprobadoPorUsuario
+        -BigDecimal montoAprobado
+        -BigDecimal montoDisponible
+        -EstadoCupo estado
+        -LocalDate fechaAprobacion
+        -LocalDate fechaVencimiento
+        -LocalDateTime creadoEn
+    }
+
+    class OperacionFactoraje {
+        -Long id
+        -String numeroOperacion
+        -Empresa empresaCedente
+        -CupoPagador cupoPagador
+        -Ejecutivo ejecutivo
+        -BigDecimal tasaDescuentoAplicada
+        -BigDecimal tasaMoraAplicada
+        -BigDecimal montoNominalTotal
+        -BigDecimal montoDescuentoTotal
+        -EstadoOperacion estado
+        -LocalDateTime fechaHoraOperacion
+    }
+
+    class DetalleOperacion {
+        -Long id
+        -OperacionFactoraje operacionFactoraje
+        -Factura factura
+        -BigDecimal montoDescuento
+    }
+
+    class Desembolso {
+        -Long id
+        -String numeroComprobante
+        -OperacionFactoraje operacionFactoraje
+        -String cuentaDestino
+        -LocalDateTime fechaHora
+    }
+
+    class Cobro {
+        -Long id
+        -String numeroComprobante
+        -Factura factura
+        -Ejecutivo ejecutivo
+        -BigDecimal montoCapital
+        -BigDecimal montoMora
+        -MetodoPago metodoPago
+        -LocalDateTime fechaHoraPago
+    }
+
+    class BitacoraOperacion {
+        -Long id
+        -Usuario usuario
+        -OperacionFactoraje operacionFactoraje
+        -TipoOperacion tipoOperacion
+        -ResultadoOperacion resultado
+        -String detalle
+        -LocalDateTime fechaHora
+    }
+
+    class Usuario {
+        -Long id
+        -String username
+        -String passwordHash
+        -String correo
+        -Boolean activo
+        -LocalDateTime creadoEn
+    }
+
+    class Rol {
+        -Long id
+        -String nombre
+        -String descripcion
+        -Boolean activo
+        -LocalDateTime creadoEn
+    }
+
+    class UsuarioRol {
+        -Long id
+        -Usuario usuario
+        -Rol rol
+        -LocalDateTime asignadoEn
+    }
+
+    class EstadoFactura {
+        <<enumeration>>
+        REGISTRADA
+        CONFIRMADA
+        CEDIDA
+        COBRADA
+        VENCIDA
+        INVALIDADA
+    }
+
+    class EstadoCupo {
+        <<enumeration>>
+        ACTIVO
+        SUSPENDIDO
+        VENCIDO
+    }
+
+    class EstadoOperacion {
+        <<enumeration>>
+        VIGENTE
+        EN_MORA
+        LIQUIDADA
+    }
+
+    class MetodoPago {
+        <<enumeration>>
+        TRANSFERENCIA
+        CHEQUE
+        DEPOSITO
+    }
+
+    class TipoOperacion {
+        <<enumeration>>
+        ANTICIPO_FACTURAS
+        REGISTRO_COBRO
+    }
+
+    class ResultadoOperacion {
+        <<enumeration>>
+        EXITOSO
+        FALLIDO
+    }
+
+    SectorEconomico "1" <-- "0..*" Empresa : clasifica
+    Usuario "0..1" <-- "0..1" Empresa : accede_como
+    Usuario "1" <-- "0..1" Ejecutivo : opera_como
+
+    Empresa "1" <-- "0..*" Factura : cede
+    Empresa "1" <-- "0..*" Factura : debe
+    Empresa "1" <-- "0..*" CupoPagador : recibe
+    CategoriaRiesgo "1" <-- "0..*" CupoPagador : clasifica
+    Usuario "1" <-- "0..*" CupoPagador : aprueba
+
+    CupoPagador "1" <-- "0..*" OperacionFactoraje : respalda
+    Empresa "1" <-- "0..*" OperacionFactoraje : solicita
+    Ejecutivo "1" <-- "0..*" OperacionFactoraje : ejecuta
+    OperacionFactoraje "1" <-- "1..*" DetalleOperacion : incluye
+    Factura "1" <-- "0..1" DetalleOperacion : se_cede_en
+    OperacionFactoraje "1" <-- "1" Desembolso : genera
+
+    Factura "1" <-- "0..1" Cobro : se_paga_con
+    Ejecutivo "1" <-- "0..*" Cobro : registra
+
+    Usuario "1" <-- "0..*" BitacoraOperacion : ejecuta
+    OperacionFactoraje "0..1" <-- "0..*" BitacoraOperacion : traza
+
+    Usuario "1" <-- "0..*" UsuarioRol : tiene
+    Rol "1" <-- "0..*" UsuarioRol : se_asigna_en
+
+    Factura ..> EstadoFactura : usa
+    CupoPagador ..> EstadoCupo : usa
+    OperacionFactoraje ..> EstadoOperacion : usa
+    Cobro ..> MetodoPago : usa
+    BitacoraOperacion ..> TipoOperacion : usa
+    BitacoraOperacion ..> ResultadoOperacion : usa
